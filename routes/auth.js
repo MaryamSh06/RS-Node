@@ -113,7 +113,6 @@ const authenticateUser = (token) => {
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     return decodedToken.userId;
   } catch (error) {
-    console.log("auth error", error)
     return null;
   }
 };
@@ -166,8 +165,8 @@ const users = {};
 io.on("connection", (socket) => {
   
 
-  console.log("User connected:", socket.id, "User ID:", socket.userId);
-  users[socket.id] = socket.userId;
+  // console.log("User connected:", socket?.id, "User ID:", socket?.userId);
+  users[socket.id] = socket?.userId;
   io.emit("userLogin", Object.values(users));
 
  
@@ -176,15 +175,15 @@ io.on("connection", (socket) => {
   // io.to(socket.id).emit("updateScreenContents", initialScreenContents);
 
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    delete users[socket.id];
+    // console.log("User disconnected:", socket?.id);
+    delete users[socket?.id];
     io.emit("userLogout",Object.values(users));
   });
 });
 
 
 server.listen(9000, () => {
-  console.log("Server for websockets is listening on port 9000");
+  // console.log("Server for websockets is listening on port 9000");
 });
 
 
