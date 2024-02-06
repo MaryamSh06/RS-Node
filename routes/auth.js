@@ -10,62 +10,7 @@ const app = express();
 const http = require("http");
 const socketIO = require("socket.io");
 const { Server } = require("socket.io");
-
-// router.post('/login', async (req, res, next) => {
-//   const { email, password } = req.body;
-//   try {
-//     // Validate that email and password are provided
-//     if (!email || !password) {
-//       return res.status(400).json({ message: 'Email and password are required.' });
-//     }
-
-//     // Check if the user exists in the database
-//     let user = await model?.User.findOne({where: {email}});
-
-//     if (!user) {
-//       // If the user doesn't exist, create a new user with the provided credentials
-//     //   const hashedPassword = await bcrypt.hash(password, 10);
-//     //   user = await User.create({ email, password: hashedPassword });
-//         return res.status(401).json({message: "No such user found!"});
-//     } else {
-//       // If the user exists, compare the provided hashed password
-//       const passwordMatch = await bcrypt.compare(password, user.password);
-
-//       if (!passwordMatch) {
-//         return res.status(401).json({ message: 'Incorrect password.' });
-//       }
-//       else {
-//         return res.status(200).json({message: "User Found!", user});
-//       }
-//     }
-
-// // Authenticate the user
-// passport.authenticate('local', (err, authenticatedUser, info) => {
-//   if (err) {
-//     return next(err);
-//   }
-
-//   if (!authenticatedUser) {
-//     return res.status(401).json({ message: info.message });
-//   }
-
-//   // Log in the user
-//   req.logIn(authenticatedUser, (loginErr) => {
-//     if (loginErr) {
-//       return next(loginErr);
-//     }
-
-//     return res.json({ message: 'Login successful', user: authenticatedUser });
-//   });
-// })(req, res, next);
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: 'Internal Server Error' });
-//   }
-// });
-// router.post('/login', passport.authenticate('local'), (req, res) => {
-//     res.json({ message: 'Login successful', user: req.user });
-//   });
+const crypto = require("crypto");
 
 app.use(cors());
 app.use(express.json());
@@ -84,6 +29,15 @@ const authenticateUser = (token) => {
     return null;
   }
 };
+
+function hashUserId(userId) {
+  const secret = process.env.JWT_SECRET;
+  const hash = crypto
+    .createHmac("sha256", secret)
+    .update(userId.toString())
+    .digest("hex");
+  return hash;
+}
 
 io.use((socket, next) => {
   const { token } = socket.handshake.auth;
@@ -105,16 +59,25 @@ io.use((socket, next) => {
 const users = {};
 io.on("connection", (socket) => {
   // console.log("User connected:", socket?.id, "User ID:", socket?.userId);
-  users[socket.id] = socket?.userId;
-  io.emit("userLogin", Object.values(users));
 
-  // const initialScreenContents = [{ name: "ali" }];
-  // io.to(socket.id).emit("updateScreenContents", initialScreenContents);
+  socket.on("check", (data) => {
+    if (data !== undefined) {
+      if (!users.hasOwnProperty(data.socketID)) {
+        users[data.socketID] = {
+          id: hashUserId(socket?.userId),
+          username: data?.username,
+          socketID: data.socketID,
+        };
+      }
+      socket.broadcast.emit("active", users);
+      socket.emit("active", users);
+    }
+  });
 
   socket.on("disconnect", () => {
     // console.log("User disconnected:", socket?.id);
     delete users[socket?.id];
-    io.emit("userLogout", Object.values(users));
+    io.emit("active", users);
   });
 });
 
